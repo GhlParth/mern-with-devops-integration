@@ -10,6 +10,15 @@ node_modules/
 /build
 /dist
 
+
+# terraform files
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/*.backup
+terraform/terraform.tfvars
+terraform/state.json
+**/.terraform/
+
 # Misc
 .DS_Store
 .env
@@ -44,3 +53,4 @@ Thumbs.db
 # Logs
 logs/
 *.log
+

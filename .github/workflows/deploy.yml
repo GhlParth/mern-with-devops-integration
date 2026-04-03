@@ -1,74 +1,4 @@
-# name: Deploy to EC2 on merge to main
-
-# on:
-#   push:
-#     branches:
-#       - main
-
-# jobs:
-#   deploy:
-#     runs-on: ubuntu-latest
-
-#     permissions:
-#       contents: read
-#       packages: write
-
-#     steps:
-
-#       - name: Checkout code
-#         uses: actions/checkout@v3
-
-#       - name: Log in to GitHub Container Registry
-#         uses: docker/login-action@v3
-#         with:
-#           registry: ghcr.io
-#           username: ${{ github.actor }}
-#           password: ${{ secrets.TOKEN_GITHUB }}
-
-#       - name: Build and push backend image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: .
-#           file: Dockerfile
-#           push: true
-#           tags: ghcr.io/ghlparth/taskflow-backend:latest
-
-#       # No build-args needed — nginx.conf proxies /api to backend internally
-#       - name: Build and push frontend image
-#         uses: docker/build-push-action@v5
-#         with:
-#           context: ./client
-#           push: true
-#           tags: ghcr.io/ghlparth/taskflow-frontend:latest
-
-#       - name: Deploy to EC2
-#         uses: appleboy/ssh-action@v1.0.0
-#         with:
-#           host: ${{ secrets.EC2_HOST }}
-#           username: ${{ secrets.EC2_USER }}
-#           key: ${{ secrets.EC2_KEY }}
-#           script: |
-#             mkdir -p /home/ubuntu/taskflow
-#             cd /home/ubuntu/taskflow
-
-#             echo "${{ secrets.ENV_FILE }}" > .env
-
-#             curl -fsSL https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml -o docker-compose.yml
-
-#             echo "${{ secrets.TOKEN_GITHUB }}" | docker login ghcr.io -u GhlParth --password-stdin
-
-#             docker pull ghcr.io/ghlparth/taskflow-backend:latest
-#             docker pull ghcr.io/ghlparth/taskflow-frontend:latest
-
-#             docker compose down
-#             docker compose up -d
-
-#             docker image prune -f
-
-#             echo "Deployment complete!"
-
-
-name: Deploy to EC2
+name: Deploy App to AWS ASG
 
 on:
   # Automatically runs after build.yml completes successfully
@@ -81,39 +11,57 @@ on:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    # Only deploy if the build workflow succeeded
     if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'workflow_dispatch' }}
 
     steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v1.0.0
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
-          host: ${{ secrets.EC2_HOST }}
-          username: ${{ secrets.EC2_USER }}
-          key: ${{ secrets.EC2_KEY }}
-          script: |
-            mkdir -p /home/ubuntu/taskflow
-            cd /home/ubuntu/taskflow
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-south-1   # ← Fixed: matches terraform.tfvars aws_region
 
-            # Write .env from GitHub Secrets
-            echo "${{ secrets.ENV_FILE }}" > .env
+      - name: Update SSM Database URI
+        run: |
+          aws ssm put-parameter \
+            --name "/taskflow/mongodb_uri" \
+            --value "${{ secrets.MONGODB_URI }}" \
+            --type "SecureString" \
+            --overwrite
 
-            # Pull latest docker-compose.yml from main branch
-            curl -fsSL https://raw.githubusercontent.com/GhlParth/mern-with-devops-integration/main/docker-compose.yml -o docker-compose.yml
+      - name: Update SSM GitHub Token
+        run: |
+          aws ssm put-parameter \
+            --name "/taskflow/github_token" \
+            --value "${{ secrets.GITHUB_TOKEN }}" \
+            --type "SecureString" \
+            --overwrite
 
-            # Log in to GHCR
-            echo "${{ secrets.TOKEN_GITHUB }}" | docker login ghcr.io -u GhlParth --password-stdin
+      - name: Trigger Frontend ASG Instance Refresh
+        run: |
+          # ASG name = project_name (taskflow-mern) + "-frontend-asg"
+          FRONTEND_ASG="taskflow-mern-frontend-asg"
 
-            # Pull latest images
-            docker pull ghcr.io/ghlparth/taskflow-backend:latest
-            docker pull ghcr.io/ghlparth/taskflow-frontend:latest
+          echo "Starting instance refresh for $FRONTEND_ASG..."
 
-            # Restart containers
-            docker compose down
-            docker compose up -d
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$FRONTEND_ASG" \
+            --preferences '{"MinHealthyPercentage": 50}'
 
-            docker image prune -f
+          echo "Frontend instance refresh triggered successfully!"
 
-            echo "Deployment complete!"
+      - name: Trigger Backend ASG Instance Refresh
+        run: |
+          # ASG name = project_name (taskflow-mern) + "-backend-asg"
+          BACKEND_ASG="taskflow-mern-backend-asg"
+
+          echo "Starting instance refresh for $BACKEND_ASG..."
+
+          aws autoscaling start-instance-refresh \
+            --auto-scaling-group-name "$BACKEND_ASG" \
+            --preferences '{"MinHealthyPercentage": 50}'
+
+          echo "Backend instance refresh triggered successfully!"
