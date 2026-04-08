@@ -6,7 +6,7 @@ terraform {
   }
 }
 
-resource "aws_cloudfront_distribution" "this" {
+resource "aws_cloudfront_distribution" "cdn" {
   origin {
     domain_name = var.alb_dns_name
     origin_id   = "ALB-${var.project_name}"
@@ -97,8 +97,8 @@ resource "aws_route53_record" "apex" {
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.this.domain_name
-    zone_id                = aws_cloudfront_distribution.this.hosted_zone_id
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
     evaluate_target_health = false
   }
 }
@@ -109,12 +109,18 @@ resource "aws_route53_record" "www" {
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.this.domain_name
-    zone_id                = aws_cloudfront_distribution.this.hosted_zone_id
+    name                   = aws_cloudfront_distribution.cdn.domain_name
+    zone_id                = aws_cloudfront_distribution.cdn.hosted_zone_id
     evaluate_target_health = false
   }
 }
 
 output "cloudfront_domain_name" {
-  value = aws_cloudfront_distribution.this.domain_name
+  value = aws_cloudfront_distribution.cdn.domain_name
+}
+
+# ==================== MOVED BLOCKS (State Migration) ====================
+moved {
+  from = aws_cloudfront_distribution.this
+  to   = aws_cloudfront_distribution.cdn
 }
