@@ -18,7 +18,3 @@ variable "private_app_subnets_cidrs" {
   description = "CIDR blocks for private application subnets"
 }
 
-variable "private_db_subnets_cidrs" {
-  type        = list(string)
-  description = "CIDR blocks for private database subnets"
-}

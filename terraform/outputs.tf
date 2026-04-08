@@ -62,6 +62,3 @@ output "bastion_instance_id" {
 #     IdentityFile ~/.ssh/my-keypair.pem
 #     ProxyJump bastion
 
-# output "rds_endpoint" {
-#   value = module.database.db_instance_endpoint
-# }

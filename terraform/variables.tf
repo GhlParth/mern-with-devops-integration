@@ -34,11 +34,6 @@ variable "private_app_subnets_cidrs" {
   default     = ["10.0.3.0/24", "10.0.4.0/24"]
 }
 
-variable "private_db_subnets_cidrs" {
-  description = "CIDR blocks for the private db subnets"
-  type        = list(string)
-  default     = ["10.0.5.0/24", "10.0.6.0/24"]
-}
 
 variable "instance_type" {
   description = "Instance type for the EC2 instances"
@@ -46,23 +41,6 @@ variable "instance_type" {
   default     = "t3.micro"
 }
 
-# variable "db_name" {
-#   description = "The name of the database"
-#   type        = string
-#   default     = "taskdb"
-# }
-# 
-# variable "db_username" {
-#   description = "The username for the database"
-#   type        = string
-#   default     = "admin"
-# }
-# 
-# variable "db_password" {
-#   description = "The password for the database"
-#   type        = string
-#   sensitive   = true
-# }
 
 variable "github_token" {
   description = "GitHub Personal Access Token for GHCR login"
