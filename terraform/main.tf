@@ -119,3 +119,14 @@ resource "aws_ssm_parameter" "mongodb_uri" {
   value     = var.mongodb_uri
   overwrite = true
 }
+
+# ==================== MONITORING & BILLING ====================
+module "monitoring" {
+  source = "./modules/monitoring"
+
+  project_name       = var.project_name
+  notification_email = var.notification_email
+  alb_arn            = module.alb.alb_arn
+  frontend_asg_name  = module.asg.frontend_asg_name
+  backend_asg_name   = module.asg.backend_asg_name
+}

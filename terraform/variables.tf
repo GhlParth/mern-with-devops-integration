@@ -80,3 +80,9 @@ variable "key_name" {
   description = "Name of the EC2 Key Pair to use for SSH access to EC2 instances"
   type        = string
 }
+
+variable "notification_email" {
+  description = "Email address for alert notifications"
+  type        = string
+  default     = "parthnghl001@gmail.com"
+}
