@@ -116,7 +116,7 @@ resource "aws_launch_template" "frontend" {
 
               # ── Create custom nginx.conf ─────────────────────────────────
               mkdir -p /home/ubuntu/app
-              cat > /home/ubuntu/app/nginx.conf << NGINX_CONF
+              cat > /home/ubuntu/app/nginx.conf << 'NGINX_CONF'
               server {
                   listen 80;
                   server_name _;
@@ -130,22 +130,22 @@ resource "aws_launch_template" "frontend" {
                       add_header Cache-Control "public, immutable";
                   }
                   
-                  # API proxy - forward to backend via ALB DNS
+                  # API proxy - forward to backend via ALB DNS (Placeholder will be replaced by sed)
                   location /api {
-                      proxy_pass http://${var.alb_dns_name}:5000;
+                      proxy_pass http://ALB_DNS_PLACEHOLDER:5000;
                       proxy_http_version 1.1;
-                      proxy_set_header Upgrade \\$http_upgrade;
+                      proxy_set_header Upgrade $http_upgrade;
                       proxy_set_header Connection 'upgrade';
-                      proxy_set_header Host \\$host;
-                      proxy_set_header X-Real-IP \\$remote_addr;
-                      proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
-                      proxy_set_header X-Forwarded-Proto \\$scheme;
-                      proxy_cache_bypass \\$http_upgrade;
+                      proxy_set_header Host $host;
+                      proxy_set_header X-Real-IP $remote_addr;
+                      proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto $scheme;
+                      proxy_cache_bypass $http_upgrade;
                   }
 
                   # React Router SPA fallback
                   location / {
-                      try_files \\$uri \\$uri/ /index.html;
+                      try_files $uri $uri/ /index.html;
                   }
                   location ~ /\. {
                       deny all;
@@ -155,6 +155,8 @@ resource "aws_launch_template" "frontend" {
               }
 NGINX_CONF
 
+              # Replace placeholder with actual ALB DNS name (crucial for Nginx startup)
+              sed -i "s/ALB_DNS_PLACEHOLDER/${var.alb_dns_name}/g" /home/ubuntu/app/nginx.conf
 
               # ── Pull and run frontend container ──────────────────────────
               retry docker pull ghcr.io/ghlparth/taskflow-frontend:latest
