@@ -116,7 +116,7 @@ resource "aws_launch_template" "frontend" {
 
               # ── Create custom nginx.conf ─────────────────────────────────
               mkdir -p /home/ubuntu/app
-              cat > /home/ubuntu/app/nginx.conf << 'NGINX_CONF'
+              cat > /home/ubuntu/app/nginx.conf << NGINX_CONF
               server {
                   listen 80;
                   server_name _;
@@ -129,9 +129,23 @@ resource "aws_launch_template" "frontend" {
                       expires 1y;
                       add_header Cache-Control "public, immutable";
                   }
+                  
+                  # API proxy - forward to backend via ALB DNS
+                  location /api {
+                      proxy_pass http://${var.alb_dns_name}:5000;
+                      proxy_http_version 1.1;
+                      proxy_set_header Upgrade \\$http_upgrade;
+                      proxy_set_header Connection 'upgrade';
+                      proxy_set_header Host \\$host;
+                      proxy_set_header X-Real-IP \\$remote_addr;
+                      proxy_set_header X-Forwarded-For \\$proxy_add_x_forwarded_for;
+                      proxy_set_header X-Forwarded-Proto \\$scheme;
+                      proxy_cache_bypass \\$http_upgrade;
+                  }
+
                   # React Router SPA fallback
                   location / {
-                      try_files $uri $uri/ /index.html;
+                      try_files \\$uri \\$uri/ /index.html;
                   }
                   location ~ /\. {
                       deny all;
@@ -139,7 +153,8 @@ resource "aws_launch_template" "frontend" {
                       log_not_found off;
                   }
               }
-              NGINX_CONF
+NGINX_CONF
+
 
               # ── Pull and run frontend container ──────────────────────────
               retry docker pull ghcr.io/ghlparth/taskflow-frontend:latest
