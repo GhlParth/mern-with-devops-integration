@@ -132,7 +132,7 @@ resource "aws_launch_template" "frontend" {
                   
                   # API proxy - forward to backend via ALB DNS (Placeholder will be replaced by sed)
                   location /api {
-                      proxy_pass http://ALB_DNS_PLACEHOLDER:5000;
+                      proxy_pass http://ALB_DNS_PLACEHOLDER;
                       proxy_http_version 1.1;
                       proxy_set_header Upgrade $http_upgrade;
                       proxy_set_header Connection 'upgrade';
