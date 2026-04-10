@@ -70,7 +70,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_5xx_errors" {
 
 # CloudWatch Alarm: Frontend ASG High CPU
 resource "aws_cloudwatch_metric_alarm" "frontend_cpu_alarm" {
-  alarm_name          = "${var.project_name}-frontend-cpu-high"
+  alarm_name          = "${var.project_name}-frontend-cpu-alert"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
@@ -89,7 +89,7 @@ resource "aws_cloudwatch_metric_alarm" "frontend_cpu_alarm" {
 
 # CloudWatch Alarm: Backend ASG High CPU
 resource "aws_cloudwatch_metric_alarm" "backend_cpu_alarm" {
-  alarm_name          = "${var.project_name}-backend-cpu-high"
+  alarm_name          = "${var.project_name}-backend-cpu-alert"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "2"
   metric_name         = "CPUUtilization"
