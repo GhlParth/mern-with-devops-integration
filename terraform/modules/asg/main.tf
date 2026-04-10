@@ -145,10 +145,15 @@ resource "aws_launch_template" "frontend" {
                       proxy_set_header X-Forwarded-Proto $scheme;
                       proxy_cache_bypass $http_upgrade;
                       
+                      # Larger buffers to prevent 502 from large headers
+                      proxy_buffer_size 128k;
+                      proxy_buffers 4 256k;
+                      proxy_busy_buffers_size 256k;
+                      
                       # Longer timeouts for backend processing
-                      proxy_connect_timeout 60s;
-                      proxy_send_timeout 60s;
-                      proxy_read_timeout 60s;
+                      proxy_connect_timeout 90s;
+                      proxy_send_timeout 90s;
+                      proxy_read_timeout 90s;
                   }
 
                   # React Router SPA fallback
@@ -373,13 +378,19 @@ resource "aws_launch_template" "backend" {
               # ── Pull and run backend container ────────────────────────────
               retry docker pull ghcr.io/ghlparth/taskflow-backend:latest
 
+              # ── Create Secure Environment File ──
+              mkdir -p /home/ubuntu/app
+              cat <<ENV_EOF > /home/ubuntu/app/.env
+              NODE_ENV=production
+              PORT=5000
+              MONGODB_URI=$MONGODB_URI
+ENV_EOF
+
               docker run -d \
                 --name taskflow-backend \
                 --restart always \
                 -p 5000:5000 \
-                -e NODE_ENV=production \
-                -e MONGODB_URI="$MONGODB_URI" \
-                -e PORT=5000 \
+                --env-file /home/ubuntu/app/.env \
                 --health-cmd "node -e \"require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})\"" \
                 --health-interval 30s \
                 --health-retries 3 \

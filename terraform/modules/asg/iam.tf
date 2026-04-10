@@ -37,12 +37,10 @@ resource "aws_iam_policy" "ssm_read_params" {
         Effect = "Allow"
         Action = [
           "ssm:GetParameter",
-          "ssm:GetParameters"
+          "ssm:GetParameters",
+          "kms:Decrypt"
         ]
-        Resource = [
-          "arn:aws:ssm:*:*:parameter/taskflow/*",
-          "arn:aws:ssm:*:*:parameter/taskflow*"
-        ]
+        Resource = ["*"]
       }
     ]
   })
