@@ -39,7 +39,10 @@ resource "aws_iam_policy" "ssm_read_params" {
           "ssm:GetParameter",
           "ssm:GetParameters"
         ]
-        Resource = "arn:aws:ssm:*:*:parameter/taskflow/*"
+        Resource = [
+          "arn:aws:ssm:*:*:parameter/taskflow/*",
+          "arn:aws:ssm:*:*:parameter/taskflow*"
+        ]
       }
     ]
   })
