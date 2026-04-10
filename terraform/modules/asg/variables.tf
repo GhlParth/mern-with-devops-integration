@@ -42,3 +42,9 @@ variable "aws_region" {
   type        = string
   description = "AWS region — used inside EC2 user_data to call SSM"
 }
+
+variable "alb_dns_name" {
+  type        = string
+  description = "DNS name of the ALB — used by Frontend Nginx to proxy to Backend"
+}
+

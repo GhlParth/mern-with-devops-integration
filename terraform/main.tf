@@ -38,6 +38,7 @@ module "asg" {
   frontend_target_group_arn = module.alb.frontend_target_group_arn
   backend_target_group_arn  = module.alb.backend_target_group_arn
   aws_region                = var.aws_region
+  alb_dns_name              = module.alb.alb_dns_name
 }
 
 # ==================== BASTION HOST ====================
