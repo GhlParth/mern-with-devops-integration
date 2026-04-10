@@ -189,7 +189,8 @@ resource "aws_autoscaling_group" "frontend" {
   instance_refresh {
     strategy = "Rolling"
     preferences {
-      min_healthy_percentage = 50
+      min_healthy_percentage = 100
+      instance_warmup        = 300
     }
     triggers = ["tag"]
   }
@@ -393,7 +394,8 @@ resource "aws_autoscaling_group" "backend" {
   instance_refresh {
     strategy = "Rolling"
     preferences {
-      min_healthy_percentage = 50
+      min_healthy_percentage = 100
+      instance_warmup        = 300
     }
     triggers = ["tag"]
   }
