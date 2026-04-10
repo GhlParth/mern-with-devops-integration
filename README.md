@@ -8,7 +8,7 @@ A beautiful, feature-rich task management application built with the MERN stack 
 - ✅ **Create, Read, Update, Delete Tasks** - Full CRUD operations.
 - 🔴 **Priority Levels** - Low, Medium, High priority system.
 - 📂 **Task Categories** - Organize tasks by category (Work, Personal, Shopping, etc.)
-- 🏷️ **Smart Filtering** - Filter by status, priority, or search
+- 🏷️ **Smart Filtering** - Filter by status, priority, or search.
 - ✏️ **Inline Editing** - Double-click to edit any task
 - 📊 **Real-time Statistics** - Track completion rate and task metrics
 - 🎨 **Beautiful UI** - Modern gradient design with smooth animations
