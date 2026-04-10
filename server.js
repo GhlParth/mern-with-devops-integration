@@ -67,6 +67,11 @@ const Task = mongoose.model('Task', taskSchema);
 
 // ==================== API ROUTES ====================
 
+// Health check endpoint for ALB
+app.get('/health', (req, res) => {
+  res.status(200).send('OK');
+});
+
 // Root endpoint
 app.get('/', (req, res) => {
   res.json({ message: 'TaskFlow API Server is Running ✅' });
@@ -326,9 +331,9 @@ app.use((req, res) => {
 // AFTER
 if (process.env.NODE_ENV !== 'test') {
   const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () => {
-    console.log(`\n🚀 Server running on http://localhost:${PORT}`);
-    console.log(`📝 API Base URL: http://localhost:${PORT}/api`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`\n🚀 Server running on http://0.0.0.0:${PORT}`);
+    console.log(`📝 API Base URL: http://0.0.0.0:${PORT}/api`);
     console.log(`🔗 Environment: ${process.env.NODE_ENV || 'development'}\n`);
   });
 }
