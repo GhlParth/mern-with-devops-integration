@@ -118,7 +118,7 @@ resource "aws_launch_template" "frontend" {
               mkdir -p /home/ubuntu/app
               cat > /home/ubuntu/app/nginx.conf << 'NGINX_CONF'
               server {
-                  listen 8080;
+                  listen 80;
                   server_name _;
                   root /usr/share/nginx/html;
                   index index.html index.htm;
@@ -178,7 +178,7 @@ NGINX_CONF
                 --name taskflow-frontend \
                 --user root \
                 --restart always \
-                -p 80:8080 \
+                -p 80:80 \
                 -v /home/ubuntu/app/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
                 ghcr.io/ghlparth/taskflow-frontend:latest
 
