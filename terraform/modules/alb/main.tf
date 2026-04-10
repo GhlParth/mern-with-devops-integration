@@ -65,11 +65,11 @@ resource "aws_lb_target_group" "backend" {
 
   health_check {
     path                = "/health"    # Dedicated health endpoint
-    interval            = 60           # Higher interval for stabilized status
-    timeout             = 10           # Longer timeout for small instances
+    interval            = 30           # Faster check for stabilization
+    timeout             = 15           # Longer timeout for small instances
     healthy_threshold   = 2
     unhealthy_threshold = 3
-    matcher             = "200"
+    matcher             = "200-399"    # Accept redirects as success for health
   }
 
   lifecycle {

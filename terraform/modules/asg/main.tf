@@ -118,7 +118,7 @@ resource "aws_launch_template" "frontend" {
               mkdir -p /home/ubuntu/app
               cat > /home/ubuntu/app/nginx.conf << 'NGINX_CONF'
               server {
-                  listen 80;
+                  listen 8080;
                   server_name _;
                   root /usr/share/nginx/html;
                   index index.html index.htm;
@@ -130,9 +130,12 @@ resource "aws_launch_template" "frontend" {
                       add_header Cache-Control "public, immutable";
                   }
                   
-                  # API proxy - forward to backend via ALB DNS (Placeholder will be replaced by sed)
+                  resolver 169.254.169.253 valid=30s;
+                  
+                  # API proxy - forward to backend via ALB DNS
                   location /api {
-                      proxy_pass http://ALB_DNS_PLACEHOLDER;
+                      set $backend_url http://ALB_DNS_PLACEHOLDER;
+                      proxy_pass $backend_url;
                       proxy_http_version 1.1;
                       proxy_set_header Upgrade $http_upgrade;
                       proxy_set_header Connection 'upgrade';
@@ -141,6 +144,11 @@ resource "aws_launch_template" "frontend" {
                       proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
                       proxy_set_header X-Forwarded-Proto $scheme;
                       proxy_cache_bypass $http_upgrade;
+                      
+                      # Longer timeouts for backend processing
+                      proxy_connect_timeout 60s;
+                      proxy_send_timeout 60s;
+                      proxy_read_timeout 60s;
                   }
 
                   # React Router SPA fallback
@@ -163,8 +171,9 @@ NGINX_CONF
 
               docker run -d \
                 --name taskflow-frontend \
+                --user root \
                 --restart always \
-                -p 80:80 \
+                -p 80:8080 \
                 -v /home/ubuntu/app/nginx.conf:/etc/nginx/conf.d/default.conf:ro \
                 ghcr.io/ghlparth/taskflow-frontend:latest
 
@@ -371,10 +380,13 @@ resource "aws_launch_template" "backend" {
                 -e NODE_ENV=production \
                 -e MONGODB_URI="$MONGODB_URI" \
                 -e PORT=5000 \
+                --health-cmd "node -e \"require('http').get('http://localhost:5000/health', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})\"" \
+                --health-interval 30s \
+                --health-retries 3 \
                 ghcr.io/ghlparth/taskflow-backend:latest
 
               docker image prune -f
-              echo "Resilient user_data script completed successfully!"
+              echo "Backend deployment completed at $(date)"
               EOF
   )
 
