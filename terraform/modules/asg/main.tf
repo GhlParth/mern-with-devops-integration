@@ -164,7 +164,7 @@ resource "aws_autoscaling_group" "frontend" {
   vpc_zone_identifier       = var.public_subnets
   target_group_arns         = [var.frontend_target_group_arn]
   health_check_type         = "ELB"
-  health_check_grace_period = 300
+  health_check_grace_period = 600
 
   min_size         = 1
   max_size         = 3
@@ -356,7 +356,7 @@ resource "aws_autoscaling_group" "backend" {
   vpc_zone_identifier       = var.private_app_subnets
   target_group_arns         = [var.backend_target_group_arn]
   health_check_type         = "ELB"
-  health_check_grace_period = 300
+  health_check_grace_period = 600
 
   min_size         = 1
   max_size         = 3
