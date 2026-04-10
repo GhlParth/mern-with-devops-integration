@@ -35,7 +35,7 @@ resource "aws_lb_target_group" "frontend" {
     timeout             = 10
     healthy_threshold   = 2
     unhealthy_threshold = 5           # More room for thermal/pull-related latency
-    matcher             = "200-399"    # Allow redirects/404s during initial build if necessary
+    matcher             = "200-499"    # High resilience during rolling updates
   }
 
   lifecycle {
