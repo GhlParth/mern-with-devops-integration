@@ -8,7 +8,7 @@ terraform {
 
 # ==================== APPLICATION LOAD BALANCER ====================
 
-resource "aws_lb" "this" {
+resource "aws_lb" "alb" {
   name               = "${var.project_name}-alb"
   internal           = false
   load_balancer_type = "application"
@@ -50,6 +50,13 @@ resource "aws_lb_target_group" "frontend" {
 # ==================== BACKEND TARGET GROUP (port 5000) ====================
 # Receives /api/* traffic from the priority-100 listener rule
 
+data "aws_elb_service_account" "main" {}
+
+moved {
+  from = aws_lb.this
+  to   = aws_lb.alb
+}
+
 resource "aws_lb_target_group" "backend" {
   name_prefix = "be-tg-"    # max 6 chars for ELBv2 name_prefix
   port        = 5000
@@ -79,7 +86,7 @@ resource "aws_lb_target_group" "backend" {
 # Priority-100 rule: /api/* → backend target group
 
 resource "aws_lb_listener" "http" {
-  load_balancer_arn = aws_lb.this.arn
+  load_balancer_arn = aws_lb.alb.arn
   port              = "80"
   protocol          = "HTTP"
 
@@ -110,7 +117,7 @@ resource "aws_lb_listener_rule" "api_to_backend" {
 # HTTPS Listener (uncomment when ACM cert is ready and you want HTTPS on the ALB too)
 # CloudFront already terminates HTTPS so this is optional.
 # resource "aws_lb_listener" "https" {
-#   load_balancer_arn = aws_lb.this.arn
+#   load_balancer_arn = aws_lb.alb.arn
 #   port              = "443"
 #   protocol          = "HTTPS"
 #   ssl_policy        = "ELBSecurityPolicy-2016-08"
