@@ -14,7 +14,7 @@ A beautiful, feature-rich task management application built with the MERN stack 
 - 🎨 **Beautiful UI** - Modern gradient design with smooth animations
 - 📱 **Fully Responsive** - Perfect on mobile, tablet, and desktop.
 - 🔍 **Advanced Search** - Search tasks by title or description
-- 📤 **Bulk Operations** - Update multiple tasks at once
+- 📤 **Bulk Operations** - Update multiple tasks at once.
 - 🧹 **Cleanup Feature** - Delete all completed tasks with one click.
 
 ### Advanced Features
