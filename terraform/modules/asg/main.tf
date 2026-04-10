@@ -382,8 +382,8 @@ resource "aws_autoscaling_group" "backend" {
   health_check_type         = "ELB"
   health_check_grace_period = 600
 
-  min_size         = 1
-  max_size         = 3
+  min_size         = 2
+  max_size         = 4
   desired_capacity = 2
 
   launch_template {
