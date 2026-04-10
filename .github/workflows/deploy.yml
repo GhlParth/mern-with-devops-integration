@@ -56,7 +56,7 @@ jobs:
             echo "Starting new instance refresh for $FRONTEND_ASG..."
             aws autoscaling start-instance-refresh \
               --auto-scaling-group-name "$FRONTEND_ASG" \
-              --preferences '{"MinHealthyPercentage": 100}'
+              --preferences '{"MinHealthyPercentage": 50}'
           fi
           echo "Frontend deployment logic completed!"
 
@@ -75,6 +75,6 @@ jobs:
             echo "Starting new instance refresh for $BACKEND_ASG..."
             aws autoscaling start-instance-refresh \
               --auto-scaling-group-name "$BACKEND_ASG" \
-              --preferences '{"MinHealthyPercentage": 100}'
+              --preferences '{"MinHealthyPercentage": 50}'
           fi
           echo "Backend deployment logic completed!"
