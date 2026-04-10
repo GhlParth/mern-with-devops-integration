@@ -56,73 +56,83 @@ resource "aws_launch_template" "frontend" {
               #!/bin/bash
               set -e
 
+              # ── Helper Functions ──────────────────────────────────────────
+              wait_for_apt() {
+                echo "Checking for apt locks..."
+                while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+                  echo "Waiting for other software managers to finish..."
+                  sleep 5
+                done
+              }
+
+              retry() {
+                local n=1; local max=5; local delay=15
+                while true; do
+                  "$@" && break || {
+                    if [[ $n -lt $max ]]; then
+                      ((n++)); echo "Command failed. Attempt $n/$max. Retrying in $delay..."; sleep $delay;
+                    else
+                      echo "Command failed after $n attempts."; return 1
+                    fi
+                  }
+                done
+              }
+
+              # Redirect output to log file for debugging
+              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+              echo "Starting resilient user_data script..."
+
               # ── Install Docker on Ubuntu 22.04 ──────────────────────────
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg lsb-release unzip
+              wait_for_apt
+              retry apt-get update -y
+              retry apt-get install -y ca-certificates curl gnupg lsb-release unzip
 
               # Add Docker's official GPG key
               install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-                -o /etc/apt/keyrings/docker.asc
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
               chmod a+r /etc/apt/keyrings/docker.asc
 
               # Add Docker apt repository
-              echo "deb [arch=$(dpkg --print-architecture) \
-                signed-by=/etc/apt/keyrings/docker.asc] \
-                https://download.docker.com/linux/ubuntu \
-                $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-                | tee /etc/apt/sources.list.d/docker.list > /dev/null
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io \
-                docker-buildx-plugin docker-compose-plugin
+              wait_for_apt
+              retry apt-get update -y
+              retry apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
               systemctl start docker
               systemctl enable docker
 
               # ── Install AWS CLI v2 ───────────────────────────────────────
-              curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
-                -o /tmp/awscliv2.zip
-              unzip -q /tmp/awscliv2.zip -d /tmp/awscli
-              /tmp/awscli/aws/install
+              retry curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+              retry unzip -q /tmp/awscliv2.zip -d /tmp/awscli
+              retry /tmp/awscli/aws/install
               rm -rf /tmp/awscliv2.zip /tmp/awscli
 
               # ── Fetch secrets from SSM Parameter Store ───────────────────
               REGION="${var.aws_region}"
-              GITHUB_TOKEN=$(aws ssm get-parameter \
-                --name "/taskflow/github_token" \
-                --with-decryption \
-                --region $REGION \
-                --query "Parameter.Value" \
-                --output text)
+              GITHUB_TOKEN=$(retry aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
 
               # ── Login to GitHub Container Registry ───────────────────────
-              echo "$GITHUB_TOKEN" | docker login ghcr.io -u GhlParth --password-stdin
+              echo "$GITHUB_TOKEN" | retry docker login ghcr.io -u GhlParth --password-stdin
 
               # ── Create custom nginx.conf ─────────────────────────────────
-              # No /api proxy_pass — ALB listener rule handles /api/* routing
               mkdir -p /home/ubuntu/app
               cat > /home/ubuntu/app/nginx.conf << 'NGINX_CONF'
               server {
                   listen 80;
                   server_name _;
-
                   root /usr/share/nginx/html;
                   index index.html index.htm;
-
                   gzip on;
                   gzip_types text/plain text/css text/javascript application/javascript application/json;
                   gzip_min_length 1000;
-
                   location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
                       expires 1y;
                       add_header Cache-Control "public, immutable";
                   }
-
                   # React Router SPA fallback
                   location / {
                       try_files $uri $uri/ /index.html;
                   }
-
                   location ~ /\. {
                       deny all;
                       access_log off;
@@ -132,7 +142,7 @@ resource "aws_launch_template" "frontend" {
               NGINX_CONF
 
               # ── Pull and run frontend container ──────────────────────────
-              docker pull ghcr.io/ghlparth/taskflow-frontend:latest
+              retry docker pull ghcr.io/ghlparth/taskflow-frontend:latest
 
               docker run -d \
                 --name taskflow-frontend \
@@ -142,6 +152,7 @@ resource "aws_launch_template" "frontend" {
                 ghcr.io/ghlparth/taskflow-frontend:latest
 
               docker image prune -f
+              echo "Resilient user_data script completed successfully!"
               EOF
   )
 
@@ -275,54 +286,65 @@ resource "aws_launch_template" "backend" {
               #!/bin/bash
               set -e
 
+              # ── Helper Functions ──────────────────────────────────────────
+              wait_for_apt() {
+                echo "Checking for apt locks..."
+                while fuser /var/lib/dpkg/lock >/dev/null 2>&1 || fuser /var/lib/apt/lists/lock >/dev/null 2>&1 || fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 ; do
+                  echo "Waiting for other software managers to finish..."
+                  sleep 5
+                done
+              }
+
+              retry() {
+                local n=1; local max=5; local delay=15
+                while true; do
+                  "$@" && break || {
+                    if [[ $n -lt $max ]]; then
+                      ((n++)); echo "Command failed. Attempt $n/$max. Retrying in $delay..."; sleep $delay;
+                    else
+                      echo "Command failed after $n attempts."; return 1
+                    fi
+                  }
+                done
+              }
+
+              # Redirect output to log file for debugging
+              exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+              echo "Starting resilient user_data script (Backend)..."
+
               # ── Install Docker on Ubuntu 22.04 ──────────────────────────
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg lsb-release unzip
+              wait_for_apt
+              retry apt-get update -y
+              retry apt-get install -y ca-certificates curl gnupg lsb-release unzip
 
               install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
-                -o /etc/apt/keyrings/docker.asc
+              curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
               chmod a+r /etc/apt/keyrings/docker.asc
 
-              echo "deb [arch=$(dpkg --print-architecture) \
-                signed-by=/etc/apt/keyrings/docker.asc] \
-                https://download.docker.com/linux/ubuntu \
-                $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
-                | tee /etc/apt/sources.list.d/docker.list > /dev/null
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
 
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io \
-                docker-buildx-plugin docker-compose-plugin
+              wait_for_apt
+              retry apt-get update -y
+              retry apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
               systemctl start docker
               systemctl enable docker
 
               # ── Install AWS CLI v2 ───────────────────────────────────────
-              curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
-                -o /tmp/awscliv2.zip
-              unzip -q /tmp/awscliv2.zip -d /tmp/awscli
-              /tmp/awscli/aws/install
+              retry curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+              retry unzip -q /tmp/awscliv2.zip -d /tmp/awscli
+              retry /tmp/awscli/aws/install
               rm -rf /tmp/awscliv2.zip /tmp/awscli
 
               # ── Fetch secrets from SSM Parameter Store ───────────────────
               REGION="${var.aws_region}"
-              GITHUB_TOKEN=$(aws ssm get-parameter \
-                --name "/taskflow/github_token" \
-                --with-decryption \
-                --region $REGION \
-                --query "Parameter.Value" \
-                --output text)
-              MONGODB_URI=$(aws ssm get-parameter \
-                --name "/taskflow/mongodb_uri" \
-                --with-decryption \
-                --region $REGION \
-                --query "Parameter.Value" \
-                --output text)
+              GITHUB_TOKEN=$(retry aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+              MONGODB_URI=$(retry aws ssm get-parameter --name "/taskflow/mongodb_uri" --with-decryption --region $REGION --query "Parameter.Value" --output text)
 
               # ── Login to GitHub Container Registry ───────────────────────
-              echo "$GITHUB_TOKEN" | docker login ghcr.io -u GhlParth --password-stdin
+              echo "$GITHUB_TOKEN" | retry docker login ghcr.io -u GhlParth --password-stdin
 
               # ── Pull and run backend container ────────────────────────────
-              docker pull ghcr.io/ghlparth/taskflow-backend:latest
+              retry docker pull ghcr.io/ghlparth/taskflow-backend:latest
 
               docker run -d \
                 --name taskflow-backend \
@@ -334,6 +356,7 @@ resource "aws_launch_template" "backend" {
                 ghcr.io/ghlparth/taskflow-backend:latest
 
               docker image prune -f
+              echo "Resilient user_data script completed successfully!"
               EOF
   )
 
