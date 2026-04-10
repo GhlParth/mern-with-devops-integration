@@ -155,6 +155,8 @@ resource "aws_launch_template" "frontend" {
               }
 NGINX_CONF
 
+              # Replace placeholder with actual ALB DNS name (crucial for Nginx startup)
+              sed -i "s/ALB_DNS_PLACEHOLDER/${var.alb_dns_name}/g" /home/ubuntu/app/nginx.conf
 
               # ── Pull and run frontend container ──────────────────────────
               retry docker pull ghcr.io/ghlparth/taskflow-frontend:latest
