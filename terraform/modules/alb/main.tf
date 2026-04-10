@@ -32,10 +32,10 @@ resource "aws_lb_target_group" "frontend" {
   health_check {
     path                = "/"
     interval            = 30
-    timeout             = 10
+    timeout             = 5
     healthy_threshold   = 2
-    unhealthy_threshold = 5           # More room for thermal/pull-related latency
-    matcher             = "200-499"    # High resilience during rolling updates
+    unhealthy_threshold = 3
+    matcher             = "200"
   }
 
   lifecycle {
@@ -67,9 +67,9 @@ resource "aws_lb_target_group" "backend" {
     path                = "/health"    # Dedicated health endpoint
     interval            = 30           # Faster check for stabilization
     timeout             = 15           # Longer timeout for small instances
-    healthy_threshold   = 3
-    unhealthy_threshold = 5
-    matcher             = "200-399"    # Accept redirects as success for health
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+    matcher             = "200"
   }
 
   lifecycle {
