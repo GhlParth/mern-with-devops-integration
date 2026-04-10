@@ -64,9 +64,9 @@ resource "aws_lb_target_group" "backend" {
   vpc_id      = var.vpc_id
 
   health_check {
-    path                = "/"       # Express root returns 200
-    interval            = 30
-    timeout             = 5
+    path                = "/health"    # Dedicated health endpoint
+    interval            = 60           # Higher interval for stabilized status
+    timeout             = 10           # Longer timeout for small instances
     healthy_threshold   = 2
     unhealthy_threshold = 3
     matcher             = "200"
