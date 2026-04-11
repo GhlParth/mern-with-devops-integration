@@ -6,7 +6,11 @@ require('dotenv').config();
 const app = express();
 
 // ==================== MIDDLEWARE ====================
-app.use(cors());
+app.use(cors({
+  origin: ['https://devhubbusiness.online', 'https://www.devhubbusiness.online'],
+  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+  credentials: true
+}));
 app.use(express.json());
 
 // ==================== DATABASE CONNECTION ====================
