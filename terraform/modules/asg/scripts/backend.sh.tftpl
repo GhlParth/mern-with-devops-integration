@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# ── Ensure the AWS CLI is in the PATH ──
+export PATH=$PATH:/usr/local/bin
+
+
 # ── Helper function for retries ──
 retry() {
   local n=1; local max=10; local delay=5
@@ -42,12 +46,25 @@ rm -rf /tmp/awscliv2.zip /tmp/awscli
 
 # ── Fetch secrets ───────────────────
 REGION="${aws_region}"
-GITHUB_TOKEN=$(retry aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
-MONGODB_URI=$(retry aws ssm get-parameter --name "/taskflow/mongodb_uri" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+echo "Fetching secrets from SSM in $REGION..."
+GITHUB_TOKEN=$(retry /usr/local/bin/aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+MONGODB_URI=$(retry /usr/local/bin/aws ssm get-parameter --name "/taskflow/mongodb_uri" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+
+# ── Validate Secrets ──────────────────
+if [ -z "$GITHUB_TOKEN" ] || [ "$GITHUB_TOKEN" == "None" ]; then
+  echo "CRITICAL ERROR: GITHUB_TOKEN is empty or could not be fetched."
+  exit 1
+fi
+
+if [ -z "$MONGODB_URI" ] || [ "$MONGODB_URI" == "None" ]; then
+  echo "CRITICAL ERROR: MONGODB_URI is empty or could not be fetched."
+  exit 1
+fi
+echo "Secrets successfully fetched."
 
 # ── Pull and run backend ────────────────────────────
-echo "$GITHUB_TOKEN" | retry docker login ghcr.io -u GhlParth --password-stdin
-retry docker pull ghcr.io/ghlparth/taskflow-backend:latest
+retry sh -c "echo '$GITHUB_TOKEN' | /usr/bin/docker login ghcr.io -u ghlparth --password-stdin"
+retry /usr/bin/docker pull ghcr.io/ghlparth/taskflow-backend:latest
 
 docker run -d \
   --name taskflow-backend \
