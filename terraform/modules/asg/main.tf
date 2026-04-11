@@ -46,48 +46,9 @@ resource "aws_launch_template" "frontend" {
     name = aws_iam_instance_profile.app_profile.name
   }
 
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              set -e
-
-              # ── Install Docker ──────────────────────────
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg lsb-release unzip
-
-              install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-              chmod a+r /etc/apt/keyrings/docker.asc
-
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              systemctl start docker
-              systemctl enable docker
-
-              # ── Install AWS CLI ───────────────────────────────────────
-              curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-              unzip -q /tmp/awscliv2.zip -d /tmp/awscli
-              /tmp/awscli/aws/install
-              rm -rf /tmp/awscliv2.zip /tmp/awscli
-
-              # ── Fetch secrets ───────────────────
-              REGION="${var.aws_region}"
-              GITHUB_TOKEN=$(aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
-
-              # ── Pull and run frontend ──────────────────────────
-              echo "$GITHUB_TOKEN" | docker login ghcr.io -u GhlParth --password-stdin
-              docker pull ghcr.io/ghlparth/taskflow-frontend:latest
-
-              docker run -d \
-                --name taskflow-frontend \
-                --restart always \
-                -p 80:80 \
-                ghcr.io/ghlparth/taskflow-frontend:latest
-
-              docker image prune -f
-              EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/scripts/frontend.sh.tftpl", {
+    aws_region = var.aws_region
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -127,7 +88,7 @@ resource "aws_autoscaling_group" "frontend" {
   }
 }
 
-# --- Frontend Autoscaling ---
+# --- Frontend Autoscaling Policies ---
 resource "aws_autoscaling_policy" "frontend_scale_out" {
   name                   = "${var.project_name}-frontend-scale-out"
   scaling_adjustment     = 1
@@ -163,52 +124,9 @@ resource "aws_launch_template" "backend" {
     name = aws_iam_instance_profile.app_profile.name
   }
 
-  user_data = base64encode(<<-EOF
-              #!/bin/bash
-              set -e
-
-              # ── Install Docker ──────────────────────────
-              apt-get update -y
-              apt-get install -y ca-certificates curl gnupg lsb-release unzip
-
-              install -m 0755 -d /etc/apt/keyrings
-              curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
-              chmod a+r /etc/apt/keyrings/docker.asc
-
-              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-              apt-get update -y
-              apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-              systemctl start docker
-              systemctl enable docker
-
-              # ── Install AWS CLI ───────────────────────────────────────
-              curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
-              unzip -q /tmp/awscliv2.zip -d /tmp/awscli
-              /tmp/awscli/aws/install
-              rm -rf /tmp/awscliv2.zip /tmp/awscli
-
-              # ── Fetch secrets ───────────────────
-              REGION="${var.aws_region}"
-              GITHUB_TOKEN=$(aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
-              MONGODB_URI=$(aws ssm get-parameter --name "/taskflow/mongodb_uri" --with-decryption --region $REGION --query "Parameter.Value" --output text)
-
-              # ── Pull and run backend ────────────────────────────
-              echo "$GITHUB_TOKEN" | docker login ghcr.io -u GhlParth --password-stdin
-              docker pull ghcr.io/ghlparth/taskflow-backend:latest
-
-              docker run -d \
-                --name taskflow-backend \
-                --restart always \
-                -p 5000:5000 \
-                -e NODE_ENV=production \
-                -e MONGODB_URI="$MONGODB_URI" \
-                -e PORT=5000 \
-                ghcr.io/ghlparth/taskflow-backend:latest
-
-              docker image prune -f
-              EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/scripts/backend.sh.tftpl", {
+    aws_region = var.aws_region
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -248,7 +166,7 @@ resource "aws_autoscaling_group" "backend" {
   }
 }
 
-# --- Backend Autoscaling ---
+# --- Backend Autoscaling Policies ---
 resource "aws_autoscaling_policy" "backend_scale_out" {
   name                   = "${var.project_name}-backend-scale-out"
   scaling_adjustment     = 1

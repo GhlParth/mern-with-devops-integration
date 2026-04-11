@@ -1,64 +1,58 @@
+# ==================== NETWORKING OUTPUTS ====================
+
 output "vpc_id" {
   description = "ID of the VPC"
   value       = module.vpc.vpc_id
 }
 
+output "nat_gateway_ips" {
+  description = "Public IPs of the NAT Gateways (Whitelist these in MongoDB Atlas)"
+  value       = module.vpc.nat_gateway_ips
+}
+
+# ==================== ACCESS & DELIVERY OUTPUTS ====================
+
 output "alb_dns_name" {
-  description = "DNS name of the Application Load Balancer"
+  description = "DNS name of the Load Balancer"
   value       = module.alb.alb_dns_name
 }
 
 output "cloudfront_domain_name" {
-  description = "CloudFront distribution domain (use this to access the app)"
+  description = "CloudFront URL (The recommended way to access your app)"
   value       = module.cloudfront.cloudfront_domain_name
 }
 
 output "route53_name_servers" {
-  description = "Name servers for the Route53 hosted zone — configure these at your registrar"
+  description = "Name servers for the Route53 hosted zone"
   value       = module.route53.name_servers
 }
 
-# ==================== COMPUTE OUTPUTS ====================
+# ==================== COMPUTE (ASG) OUTPUTS ====================
 
 output "frontend_asg_name" {
-  description = "Frontend Auto Scaling Group name (public subnets, port 80)"
+  description = "Name of the Frontend Auto Scaling Group"
   value       = module.asg.frontend_asg_name
 }
 
 output "backend_asg_name" {
-  description = "Backend Auto Scaling Group name (private subnets, port 5000)"
+  description = "Name of the Backend Auto Scaling Group"
   value       = module.asg.backend_asg_name
 }
 
 # ==================== BASTION SSH ACCESS ====================
 
 output "bastion_public_ip" {
-  description = "Public IP of the Bastion host — SSH jump server for backend instances"
+  description = "Public IP of the Bastion jump server"
   value       = module.bastion.bastion_public_ip
 }
 
-output "bastion_instance_id" {
-  description = "Instance ID of the Bastion host"
-  value       = module.bastion.bastion_instance_id
-}
-
-# ==================== SSH QUICK REFERENCE ====================
-# Use these in terraform output after apply:
+# ==================== DEPLOYMENT TIPS ====================
 #
-# Direct SSH to a FRONTEND instance (get its public IP from EC2 console):
-#   ssh -i my-keypair.pem ubuntu@<frontend_instance_public_ip>
+# Direct SSH to Frontend (via Public IP):
+#   ssh -i keypair.pem ubuntu@<frontend_public_ip>
 #
-# SSH to a BACKEND instance via Bastion jump:
-#   ssh -i my-keypair.pem -J ubuntu@<bastion_public_ip> ubuntu@<backend_private_ip>
+# SSH to Backend via Bastion:
+#   ssh -i keypair.pem -J ubuntu@${module.bastion.bastion_public_ip} ubuntu@<backend_private_ip>
 #
-# Or configure ~/.ssh/config for convenience:
-#   Host bastion
-#     HostName <bastion_public_ip>
-#     User ubuntu
-#     IdentityFile ~/.ssh/my-keypair.pem
-#
-#   Host backend-*
-#     User ubuntu
-#     IdentityFile ~/.ssh/my-keypair.pem
-#     ProxyJump bastion
-
+# To watch boot logs on an instance:
+#   tail -f /var/log/user-data.log

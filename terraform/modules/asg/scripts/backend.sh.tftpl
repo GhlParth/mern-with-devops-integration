@@ -1,0 +1,62 @@
+#!/bin/bash
+set -e
+
+# ── Helper function for retries ──
+retry() {
+  local n=1; local max=10; local delay=5
+  while true; do
+    "$@" && break || {
+      if [[ $n -lt $max ]]; then
+        ((n++)); echo "Command failed. Attempt $n/$max. Retrying in $delay..."; sleep $delay;
+      else
+        echo "Failed after $n attempts."; return 1
+      fi
+    }
+  done
+}
+
+# ── Log all output for debugging ──
+exec > >(tee /var/log/user-data.log|logger -t user-data -s 2>/dev/console) 2>&1
+echo "Starting resilient Backend boot script..."
+
+# ── Install Docker ──────────────────────────
+retry apt-get update -y
+retry apt-get install -y ca-certificates curl gnupg lsb-release unzip
+
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+chmod a+r /etc/apt/keyrings/docker.asc
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+retry apt-get update -y
+retry apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+systemctl start docker
+systemctl enable docker
+
+# ── Install AWS CLI ───────────────────────────────────────
+retry curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip
+unzip -q /tmp/awscliv2.zip -d /tmp/awscli
+retry /tmp/awscli/aws/install
+rm -rf /tmp/awscliv2.zip /tmp/awscli
+
+# ── Fetch secrets ───────────────────
+REGION="${aws_region}"
+GITHUB_TOKEN=$(retry aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+MONGODB_URI=$(retry aws ssm get-parameter --name "/taskflow/mongodb_uri" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+
+# ── Pull and run backend ────────────────────────────
+echo "$GITHUB_TOKEN" | retry docker login ghcr.io -u GhlParth --password-stdin
+retry docker pull ghcr.io/ghlparth/taskflow-backend:latest
+
+docker run -d \
+  --name taskflow-backend \
+  --restart always \
+  -p 5000:5000 \
+  -e NODE_ENV=production \
+  -e MONGODB_URI="$MONGODB_URI" \
+  -e PORT=5000 \
+  ghcr.io/ghlparth/taskflow-backend:latest
+
+docker image prune -f
+echo "Backend boot successfully completed at $(date)"

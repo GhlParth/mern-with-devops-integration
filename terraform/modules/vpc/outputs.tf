@@ -10,3 +10,6 @@ output "private_app_subnets" {
   value = aws_subnet.private_app[*].id
 }
 
+output "nat_gateway_ips" {
+  value = aws_eip.nat[*].public_ip
+}

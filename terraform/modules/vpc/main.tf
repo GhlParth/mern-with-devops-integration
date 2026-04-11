@@ -1,6 +1,5 @@
 # VPC Module
 
-# Terraform provider
 terraform {
   required_providers {
     aws = {
@@ -8,8 +7,6 @@ terraform {
     }
   }
 }
-
-
 
 resource "aws_vpc" "vpc" {
   cidr_block           = var.vpc_cidr
@@ -21,7 +18,6 @@ resource "aws_vpc" "vpc" {
   }
 }
 
-# Internet Gateway
 resource "aws_internet_gateway" "gateway" {
   vpc_id = aws_vpc.vpc.id
 
@@ -30,7 +26,6 @@ resource "aws_internet_gateway" "gateway" {
   }
 }
 
-# Public Subnets
 resource "aws_subnet" "public" {
   count                   = length(var.public_subnets_cidrs)
   vpc_id                  = aws_vpc.vpc.id
@@ -43,7 +38,6 @@ resource "aws_subnet" "public" {
   }
 }
 
-# Private App Subnets
 resource "aws_subnet" "private_app" {
   count             = length(var.private_app_subnets_cidrs)
   vpc_id            = aws_vpc.vpc.id
@@ -55,10 +49,8 @@ resource "aws_subnet" "private_app" {
   }
 }
 
-
-# Elastic IPs for NAT Gateways
 resource "aws_eip" "nat" {
-  count = length(var.public_subnets_cidrs)
+  count  = length(var.public_subnets_cidrs)
   domain = "vpc"
 
   tags = {
@@ -66,7 +58,6 @@ resource "aws_eip" "nat" {
   }
 }
 
-# NAT Gateways (One per AZ for HA)
 resource "aws_nat_gateway" "nat" {
   count         = length(var.public_subnets_cidrs)
   allocation_id = aws_eip.nat[count.index].id
@@ -79,7 +70,6 @@ resource "aws_nat_gateway" "nat" {
   depends_on = [aws_internet_gateway.gateway]
 }
 
-# Route Tables
 resource "aws_route_table" "public" {
   vpc_id = aws_vpc.vpc.id
 
@@ -107,7 +97,6 @@ resource "aws_route_table" "private" {
   }
 }
 
-# Route Table Associations
 resource "aws_route_table_association" "public" {
   count          = length(var.public_subnets_cidrs)
   subnet_id      = aws_subnet.public[count.index].id
@@ -120,23 +109,6 @@ resource "aws_route_table_association" "private_app" {
   route_table_id = aws_route_table.private[count.index].id
 }
 
-
 data "aws_availability_zones" "available" {
   state = "available"
-}
-
-# ==================== MOVED BLOCKS (State Migration) ====================
-moved {
-  from = aws_vpc.this
-  to   = aws_vpc.vpc
-}
-
-moved {
-  from = aws_internet_gateway.this
-  to   = aws_internet_gateway.gateway
-}
-
-moved {
-  from = aws_nat_gateway.this
-  to   = aws_nat_gateway.nat
 }
