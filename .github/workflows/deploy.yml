@@ -37,7 +37,7 @@ jobs:
         run: |
           aws ssm put-parameter \
             --name "/taskflow/github_token" \
-            --value "${{ secrets.GITHUB_TOKEN }}" \
+            --value "${{ secrets.TOKEN_GITHUB }}" \
             --type "SecureString" \
             --overwrite
 

@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# ── Ensure the AWS CLI is in the PATH ──
+export PATH=$PATH:/usr/local/bin
+
+
 # ── Helper function for retries ──
 retry() {
   local n=1; local max=10; local delay=5
@@ -42,11 +46,19 @@ rm -rf /tmp/awscliv2.zip /tmp/awscli
 
 # ── Fetch secrets ───────────────────
 REGION="${aws_region}"
-GITHUB_TOKEN=$(retry aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+echo "Fetching GITHUB_TOKEN from SSM in $REGION..."
+GITHUB_TOKEN=$(retry /usr/local/bin/aws ssm get-parameter --name "/taskflow/github_token" --with-decryption --region $REGION --query "Parameter.Value" --output text)
+
+# ── Validate Token ──────────────────
+if [ -z "$GITHUB_TOKEN" ] || [ "$GITHUB_TOKEN" == "None" ]; then
+  echo "CRITICAL ERROR: GITHUB_TOKEN is empty or could not be fetched. Check IAM permissions and SSM Parameter path."
+  exit 1
+fi
+echo "GITHUB_TOKEN successfully fetched."
 
 # ── Pull and run frontend ──────────────────────────
-echo "$GITHUB_TOKEN" | retry docker login ghcr.io -u GhlParth --password-stdin
-retry docker pull ghcr.io/ghlparth/taskflow-frontend:latest
+retry sh -c "echo '$GITHUB_TOKEN' | /usr/bin/docker login ghcr.io -u ghlparth --password-stdin"
+retry /usr/bin/docker pull ghcr.io/ghlparth/taskflow-frontend:latest
 
 docker run -d \
   --name taskflow-frontend \
