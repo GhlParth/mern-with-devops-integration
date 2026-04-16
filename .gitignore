@@ -18,6 +18,7 @@ terraform/*.backup
 terraform/terraform.tfvars
 terraform/state.json
 **/.terraform/
+terraform.tfstate
 
 # Misc
 .DS_Store
